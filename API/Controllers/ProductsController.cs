@@ -14,7 +14,13 @@ namespace API.Controllers
 
     public class ProductsController : ControllerBase
     {
-        //private readonly List<Product> _content;
+        private static readonly string[] languageCodes = new[]
+        {
+            "en", "tr"
+        }; 
+
+        string activeLanguage;
+        int activeLanguageID;
 
         // public ProductsController(List<Product> content)
         // {
@@ -23,24 +29,53 @@ namespace API.Controllers
 
         public ProductsController()
         {
-            //_content = content;
+            activeLanguage = languageCodes[0];
+            activeLanguageID = 1;
         }
 
         [HttpGet]
         public ActionResult<IEnumerable<Product>> GetProducts()
         {
-            Console.WriteLine("Hello");
-
-            List<Product> productList = new List<Product>();
-
             string connectionString = @"Server=DESKTOP-NEBN67H\SQLEXPRESS;AttachDbFilename=C:\Program Files\Microsoft SQL Server\MSSQL14.SQLEXPRESS\MSSQL\DATA\eCommerce.mdf;Database=eCommerce;Trusted_Connection=Yes;";
+
+            string product_name_label = "";
+            string product_type_label = "";
+            string price_label = "";
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                Console.WriteLine( connection.State == ConnectionState.Open);
+                string stringOfSqlCommand = "SELECT * FROM [dbo].[products_table_labels] WHERE language_id = " + activeLanguageID;
 
-                SqlCommand sqlCommand = new SqlCommand("SELECT * FROM [dbo].[products]", connection);
+                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommand, connection);
+
                 sqlCommand.CommandType = CommandType.Text;
+
+                connection.Open();
+
+                SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
+
+                while(sqlDataReader.Read())
+                {
+                    product_name_label = sqlDataReader["product_name_label"].ToString();
+                    product_type_label = sqlDataReader["product_type_label"].ToString();
+                    price_label = sqlDataReader["price_label"].ToString();
+                }
+            }
+
+
+            List<Product> productList = new List<Product>();
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                //Console.WriteLine( connection.State == ConnectionState.Open); // For test purposes
+
+                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[products]";
+                
+                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
+
+                
+                sqlCommand.CommandType = CommandType.Text;
+
                 connection.Open();
 
                 SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
@@ -54,11 +89,15 @@ namespace API.Controllers
                     product.ProductTypeId = Convert.ToInt32( sqlDataReader["product_type_id"]);
                     product.Price = Convert.ToInt32( sqlDataReader["price"]);
 
-                    Console.WriteLine(product.ProductName);
+                    string productInformation = product_name_label + product.ProductName + "\n" +
+                                                product_type_label + product.ProductTypeId + "\n" +
+                                                price_label + product.Price + "\n";
+
+                    Console.WriteLine(productInformation);
 
                     productList.Add( product);
                 }
-            }        
+            }                   
             return productList;
 
         }
