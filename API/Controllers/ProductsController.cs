@@ -89,7 +89,8 @@ namespace API.Controllers
                     product.ProductTypeId = Convert.ToInt32( sqlDataReader["product_type_id"]);
                     product.Price = Convert.ToInt32( sqlDataReader["price"]);
 
-                    string productInformation = product_name_label + product.ProductName + "\n" +
+                    string productInformation = product.Id + ". " + "\n" +
+                                                product_name_label + product.ProductName + "\n" +
                                                 product_type_label + product.ProductTypeId + "\n" +
                                                 price_label + product.Price + "\n";
 
