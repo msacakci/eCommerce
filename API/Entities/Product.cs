@@ -6,8 +6,9 @@ namespace API.Entities
     {
         [Key]
         public int Id { get; set; }
-        public string ProductName { get; set; }
-        public int ProductTypeId { get; set; }
-        public int Price { get; set; }
+        public string Description { get; set; }
+        
+        //public int ProductType { get; set; }
+        //public int Price { get; set; }
     }
 }

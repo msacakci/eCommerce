@@ -14,37 +14,21 @@ namespace API.Controllers
 
     public class ProductsController : ControllerBase
     {
-        private static readonly string[] languageCodes = new[]
-        {
-            "en", "tr"
-        }; 
-
+        private List<string> languageCodes;
+        private readonly string connectionString = @"Server=DESKTOP-NEBN67H\SQLEXPRESS;AttachDbFilename=C:\Program Files\Microsoft SQL Server\MSSQL14.SQLEXPRESS\MSSQL\DATA\eCommerce.mdf;Database=eCommerce;Trusted_Connection=Yes;";
         string activeLanguage;
-        int activeLanguageID;
-
-        // public ProductsController(List<Product> content)
-        // {
-        //     _content = content;
-        // }
-
+        
         public ProductsController()
         {
-            activeLanguage = languageCodes[0];
-            activeLanguageID = 1;
-        }
+            // Step 1: Create an array list that will keep the all of the possible language codes.
+            languageCodes = new List<string>();
 
-        [HttpGet]
-        public ActionResult<IEnumerable<Product>> GetProducts()
-        {
-            string connectionString = @"Server=DESKTOP-NEBN67H\SQLEXPRESS;AttachDbFilename=C:\Program Files\Microsoft SQL Server\MSSQL14.SQLEXPRESS\MSSQL\DATA\eCommerce.mdf;Database=eCommerce;Trusted_Connection=Yes;";
-
-            string product_name_label = "";
-            string product_type_label = "";
-            string price_label = "";
-
+            // Step 2: Read the ref_languages table to see available languages and add them to the array list.
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                string stringOfSqlCommand = "SELECT * FROM [dbo].[products_table_labels] WHERE language_id = " + activeLanguageID;
+                Console.Write("Available languages: ");
+
+                string stringOfSqlCommand = "SELECT * FROM [dbo].[ref_languages]";
 
                 SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommand, connection);
 
@@ -56,23 +40,31 @@ namespace API.Controllers
 
                 while(sqlDataReader.Read())
                 {
-                    product_name_label = sqlDataReader["product_name_label"].ToString();
-                    product_type_label = sqlDataReader["product_type_label"].ToString();
-                    price_label = sqlDataReader["price_label"].ToString();
+                    languageCodes.Add( sqlDataReader["code"].ToString());
+                    Console.Write( sqlDataReader["name"].ToString() + " | ");
                 }
+
+                Console.Write("\n" + "---------------------------------------------" + "\n");
+                sqlDataReader.Close();
             }
 
+            // Step 3: Set first element of the languageCodes as default language 
+            activeLanguage = languageCodes[0];
+        }
 
+        [HttpGet]
+        public ActionResult<IEnumerable<Product>> GetProducts()
+        {
             List<Product> productList = new List<Product>();
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 //Console.WriteLine( connection.State == ConnectionState.Open); // For test purposes
 
-                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[products]";
+                // Retrieve the rows that are contains correct language code.
+                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[product_category_translations] WHERE language_code = '"+ activeLanguage + "';";
                 
                 SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
-
                 
                 sqlCommand.CommandType = CommandType.Text;
 
@@ -84,23 +76,29 @@ namespace API.Controllers
                 {
                     var product = new Product();
 
-                    product.Id = Convert.ToInt32( sqlDataReader["id"]);
-                    product.ProductName = sqlDataReader["product_name"].ToString();
-                    product.ProductTypeId = Convert.ToInt32( sqlDataReader["product_type_id"]);
-                    product.Price = Convert.ToInt32( sqlDataReader["price"]);
+                    product.Id = Convert.ToInt32( sqlDataReader["product_category_id"]);
+                    product.Description = sqlDataReader["description"].ToString();
 
-                    string productInformation = product.Id + ". " + "\n" +
-                                                product_name_label + product.ProductName + "\n" +
-                                                product_type_label + product.ProductTypeId + "\n" +
-                                                price_label + product.Price + "\n";
+                    string productInformation = product.Id + ". " + product.Description + "\n";
 
                     Console.WriteLine(productInformation);
 
                     productList.Add( product);
                 }
+
+                sqlDataReader.Close();
             }                   
             return productList;
 
         }
+
+        [HttpGet("{languageCode}")]
+        public ActionResult<IEnumerable<Product>> GetProductsWithSpecificLanguage(string languageCode)
+        {
+            activeLanguage = languageCode;
+
+            return GetProducts();
+        }
     }
+
 }
