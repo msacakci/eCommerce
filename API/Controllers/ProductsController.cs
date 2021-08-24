@@ -62,7 +62,7 @@ namespace API.Controllers
                 //Console.WriteLine( connection.State == ConnectionState.Open); // For test purposes
 
                 // Retrieve the rows that are contains correct language code.
-                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[product_category_translations] WHERE language_code = '"+ activeLanguage + "';";
+                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[product_translations] WHERE language_code = '"+ activeLanguage + "';";
                 
                 SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
                 
@@ -76,7 +76,7 @@ namespace API.Controllers
                 {
                     var product = new Product();
 
-                    product.Id = Convert.ToInt32( sqlDataReader["product_category_id"]);
+                    product.Id = Convert.ToInt32( sqlDataReader["product_id"]);
                     product.Description = sqlDataReader["description"].ToString();
 
                     string productInformation = product.Id + ". " + product.Description + "\n";
@@ -97,7 +97,15 @@ namespace API.Controllers
         {
             activeLanguage = languageCode;
 
-            return GetProducts();
+            if(!languageCodes.Contains(activeLanguage))
+            {
+                Console.WriteLine("Language code error");
+                return null;
+            }        
+            else
+            {
+                return GetProducts();
+            }     
         }
     }
 
