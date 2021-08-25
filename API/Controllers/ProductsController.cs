@@ -92,21 +92,55 @@ namespace API.Controllers
 
         }
 
-        [HttpGet("{languageCode}")]
-        public ActionResult<IEnumerable<Product>> GetProductsWithSpecificLanguage(string languageCode)
+        [HttpGet("{id}")]
+        public ActionResult<Product> GetProduct(int id)
         {
-            activeLanguage = languageCode;
+            var product = new Product();
 
-            if(!languageCodes.Contains(activeLanguage))
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                Console.WriteLine("Language code error");
-                return null;
-            }        
-            else
-            {
-                return GetProducts();
-            }     
+                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[product_translations] WHERE language_code = '"+ activeLanguage + "' AND product_id = " + id + ";";
+
+                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
+                
+                sqlCommand.CommandType = CommandType.Text;
+
+                connection.Open();
+
+                SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
+
+                while( sqlDataReader.Read())
+                {
+                    product.Id = Convert.ToInt32( sqlDataReader["product_id"]);
+                    product.Description = sqlDataReader["description"].ToString();
+
+                    string productInformation = product.Id + ". " + product.Description + "\n";
+
+                    Console.WriteLine(productInformation);
+                }
+
+                sqlDataReader.Close();
+
+            }
+            return product;
+
         }
+
+        // [HttpGet("{languageCode}")]
+        // public ActionResult<IEnumerable<Product>> GetProductsWithSpecificLanguage(string languageCode)
+        // {
+        //     activeLanguage = languageCode;
+
+        //     if(!languageCodes.Contains(activeLanguage))
+        //     {
+        //         Console.WriteLine("Language code error");
+        //         return null;
+        //     }        
+        //     else
+        //     {
+        //         return GetProducts();
+        //     }     
+        // }
     }
 
 }
