@@ -10,6 +10,7 @@ export class AppComponent  implements OnInit
 {
   title = 'e Commerce App';
   products: any;
+  users: any;
 
   constructor(private http: HttpClient)
   {
@@ -18,12 +19,21 @@ export class AppComponent  implements OnInit
 
   ngOnInit(): void 
   {
-    this.getUsers();
+    this.getProducts();
+  }
+
+  getProducts()
+  {
+    this.http.get('https://localhost:5001/products/').subscribe( response => {
+      this.products = response;
+    }, error => {
+      console.log(error);
+    })
   }
 
   getUsers()
   {
-    this.http.get('https://localhost:5001/products/').subscribe( response => {
+    this.http.get('https://localhost:5001/users/').subscribe( response => {
       this.products = response;
     }, error => {
       console.log(error);

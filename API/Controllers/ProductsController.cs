@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using API.Entities;
+using API.Helpers;
 using Microsoft.AspNetCore.Mvc;
  
 
@@ -11,7 +12,6 @@ namespace API.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-
     public class ProductsController : ControllerBase
     {
         private List<string> languageCodes;
@@ -20,36 +20,7 @@ namespace API.Controllers
         
         public ProductsController()
         {
-            // Step 1: Create an array list that will keep the all of the possible language codes.
-            languageCodes = new List<string>();
-
-            // Step 2: Read the ref_languages table to see available languages and add them to the array list.
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                Console.Write("Available languages: ");
-
-                string stringOfSqlCommand = "SELECT * FROM [dbo].[ref_languages]";
-
-                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommand, connection);
-
-                sqlCommand.CommandType = CommandType.Text;
-
-                connection.Open();
-
-                SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
-
-                while(sqlDataReader.Read())
-                {
-                    languageCodes.Add( sqlDataReader["code"].ToString());
-                    Console.Write( sqlDataReader["name"].ToString() + " | ");
-                }
-
-                Console.Write("\n" + "---------------------------------------------" + "\n");
-                sqlDataReader.Close();
-            }
-
-            // Step 3: Set first element of the languageCodes as default language 
-            activeLanguage = languageCodes[0];
+            adjustLanguageCodes();
         }
 
         [HttpGet]
@@ -141,6 +112,16 @@ namespace API.Controllers
         //         return GetProducts();
         //     }     
         // }
+
+        private void adjustLanguageCodes()
+        {
+            languageCodes = new List<string>();
+            GetLanguagesHelper getLanguagesHelper = new GetLanguagesHelper();
+
+            languageCodes = getLanguagesHelper.GetLanguagesFromDatabase(connectionString);
+
+            activeLanguage = languageCodes[0];
+        }
     }
 
 }

@@ -40,7 +40,12 @@ namespace API
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             app.UseRouting();
-            app.UseCors(x => x.AllowAnyHeader().AllowAnyHeader().AllowAnyMethod().WithOrigins("http://localhost:4200"));
+            app.UseCors(x => x
+                .AllowAnyHeader()
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .WithOrigins("http://localhost:4200"));
+
             app.UseAuthorization();
 
             if (env.IsDevelopment())
