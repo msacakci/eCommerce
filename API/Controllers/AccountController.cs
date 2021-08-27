@@ -3,8 +3,10 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using API.DTOs;
 using API.Entities;
+using API.Helpers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -21,14 +23,15 @@ namespace API.Controllers
         }
 
         [HttpPost("register")]
-        public ActionResult<AppUser> Register(RegisterDto registerDto)
+        public async Task<ActionResult<AppUser>> Register(RegisterDto registerDto)
         {
             using var hmac = new HMACSHA512();
 
             // Check username is already exists or not
-            if( UserExists(registerDto.Username))
+            Console.WriteLine(await UserExists(registerDto.Username));
+            if( await UserExists(registerDto.Username))
             {
-                BadRequest("Username is taken");
+                return BadRequest("Username is taken");
             }
 
             // Create the user
@@ -40,23 +43,14 @@ namespace API.Controllers
             };
 
             Console.WriteLine(user.PasswordHash);
+            Console.WriteLine(hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)));
+
+            string stringOfSqlCommand = "INSERT INTO [dbo].[app_users] ([username], [password_hash] ,[password_salt])" + "\n" 
+                    +  "VALUES ('" + user.UserName + "', '" + user.PasswordHash + "', '" + user.PasswordSalt + "');";
 
             // Add user to the database
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                string stringOfSqlCommandFirst = "INSERT INTO [dbo].[app_users] ([username], [password_hash] ,[password_salt])" + "\n" 
-                    +  "VALUES ('" + user.UserName + "', '" + user.PasswordHash + "', '" + user.PasswordSalt + "');";
-                
-
-                Console.WriteLine(stringOfSqlCommandFirst);
-                
-                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
-                
-                sqlCommand.CommandType = CommandType.Text;
-
-                connection.Open();
-                sqlCommand.ExecuteNonQuery();
-            }
+            DatabaseHelper databaseHelper = new DatabaseHelper();
+            await databaseHelper.InsertToDatabase(connectionString, stringOfSqlCommand);
 
             //Report the new user to the console
             Console.WriteLine("Username: " + user.UserName);
@@ -67,16 +61,14 @@ namespace API.Controllers
 
         }
 
-        private bool UserExists( string username)
+        private Task<bool> UserExists( string username)
         {
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 // Retrieve the rows that are contains correct language code.
-                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[app_users] " + "WHERE username = '" + username + "';";
-                
-                Console.WriteLine(stringOfSqlCommandFirst);
+                string stringOfSqlCommand = "SELECT * FROM [dbo].[app_users] " + "WHERE username = '" + username.ToLower() + "';";
 
-                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
+                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommand, connection);
                 
                 sqlCommand.CommandType = CommandType.Text;
 
@@ -86,16 +78,18 @@ namespace API.Controllers
 
                 while( sqlDataReader.Read())
                 {
-                    if(( sqlDataReader["username"].ToString()) == username)
+                    Console.WriteLine(( sqlDataReader["username"].ToString()).ToLower() + " - " + username.ToLower());
+                    if( string.Equals(( sqlDataReader["username"].ToString()).ToLower(), username.ToLower()))
                     {
+                        Console.WriteLine("Checkpoint");
                         sqlDataReader.Close();
-                        return true;
+                        return Task.FromResult(true);
                     }
                 }
                 sqlDataReader.Close();
             }
 
-            return false;
+            return Task.FromResult(false);
         }
     }
 }

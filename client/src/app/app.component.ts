@@ -20,6 +20,7 @@ export class AppComponent  implements OnInit
   ngOnInit(): void 
   {
     this.getProducts();
+    this.getUsers();
   }
 
   getProducts()
@@ -34,7 +35,7 @@ export class AppComponent  implements OnInit
   getUsers()
   {
     this.http.get('https://localhost:5001/users/').subscribe( response => {
-      this.products = response;
+      this.users = response;
     }, error => {
       console.log(error);
     })
