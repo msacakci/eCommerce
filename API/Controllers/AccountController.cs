@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,45 +25,66 @@ namespace API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<AppUser>> Register(RegisterDto registerDto)
+        public ActionResult<AppUser> Register(RegisterDto registerDto)
         {
-            using var hmac = new HMACSHA512();
 
             // Check username is already exists or not
-            Console.WriteLine(await UserExists(registerDto.Username));
-            if( await UserExists(registerDto.Username))
+            Console.WriteLine( UserExists(registerDto.Username));
+            if( UserExists(registerDto.Username))
             {
                 return BadRequest("Username is taken");
             }
 
             // Create the user
-            var user = new AppUser
+            using var hmac = new HMACSHA512();
+            AppUser user = new AppUser
             {
                 UserName = registerDto.Username,
                 PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)),
-                PasswordSalt = hmac.Key
+                PasswordSalt = hmac.Key,
             };
 
-            Console.WriteLine(user.PasswordHash);
-            Console.WriteLine(hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.Password)));
+            string stringOfSqlCommand = "INSERT INTO [dbo].[app_users] ([username], [password_hash], [password_salt])" + "\n" 
+                    +  "VALUES ('" + user.UserName + "', '" + BitConverter.ToString(user.PasswordHash).Replace("-","") + "', '" + BitConverter.ToString(user.PasswordSalt).Replace("-","") + "');";
 
-            string stringOfSqlCommand = "INSERT INTO [dbo].[app_users] ([username], [password_hash] ,[password_salt])" + "\n" 
-                    +  "VALUES ('" + user.UserName + "', '" + user.PasswordHash + "', '" + user.PasswordSalt + "');";
 
             // Add user to the database
             DatabaseHelper databaseHelper = new DatabaseHelper();
-            await databaseHelper.InsertToDatabase(connectionString, stringOfSqlCommand);
-
-            //Report the new user to the console
-            Console.WriteLine("Username: " + user.UserName);
-            Console.WriteLine("PasswordHash: " + user.PasswordHash);
+            databaseHelper.InsertToDatabase(connectionString, stringOfSqlCommand);
 
             //Return the new user
             return user;
-
         }
 
-        private Task<bool> UserExists( string username)
+        [HttpPost("login")]
+        public ActionResult<AppUser> Login(LoginDto loginDto)
+        {
+            var user = GetUserFromDatabase(loginDto.Username);
+
+            if(user == null)
+            {
+                return Unauthorized("Invalid username");
+            }
+
+            using var hmac = new HMACSHA512(user.PasswordSalt);
+
+            var computeHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(loginDto.Password));
+
+            for(int index = 0; index < computeHash.Length; index++)
+            {
+                if(computeHash[index] != user.PasswordHash[index])
+                {
+                    // Console.WriteLine("1400 -- " + BitConverter.ToString(computeHash).Replace("-",""));
+                    // Console.WriteLine("1401 -- " + BitConverter.ToString(user.PasswordHash).Replace("-",""));
+
+                    return Unauthorized("Invalid password");
+                }
+            }
+
+            return user;
+        }
+
+        private bool UserExists( string username)
         {
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
@@ -78,18 +101,71 @@ namespace API.Controllers
 
                 while( sqlDataReader.Read())
                 {
-                    Console.WriteLine(( sqlDataReader["username"].ToString()).ToLower() + " - " + username.ToLower());
                     if( string.Equals(( sqlDataReader["username"].ToString()).ToLower(), username.ToLower()))
                     {
                         Console.WriteLine("Checkpoint");
                         sqlDataReader.Close();
-                        return Task.FromResult(true);
+                        return true;
                     }
                 }
                 sqlDataReader.Close();
             }
 
-            return Task.FromResult(false);
+            return false;
+        }
+
+        private AppUser GetUserFromDatabase( string username)
+        {
+            var user = new AppUser
+            {
+                Id = -1,
+                UserName = null,
+                PasswordHash = null,
+                PasswordSalt = null
+            };
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                // Retrieve the rows that are contains correct language code.
+                string stringOfSqlCommand = "SELECT * FROM [dbo].[app_users] " + "WHERE username = '" + username.ToLower() + "';";
+
+                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommand, connection);
+                
+                sqlCommand.CommandType = CommandType.Text;
+
+                connection.Open();
+
+                SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
+
+                while( sqlDataReader.Read())
+                {
+                    user.Id = Convert.ToInt32( sqlDataReader["id"]);
+
+                    user.UserName = sqlDataReader["username"].ToString();     
+
+                    user.PasswordHash = StringToByteArray(sqlDataReader["password_hash"].ToString());
+
+                    user.PasswordSalt = StringToByteArray(sqlDataReader["password_salt"].ToString());
+                }
+                sqlDataReader.Close();
+            }
+
+            if(user.Id == -1)
+            {
+                return null;
+            }
+            else
+            {
+                return user;
+            }
+        }
+
+        private byte[] StringToByteArray(string hex) 
+        {
+            return Enumerable.Range(0, hex.Length)
+                            .Where(x => x % 2 == 0)
+                            .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                            .ToArray();
         }
     }
 }
