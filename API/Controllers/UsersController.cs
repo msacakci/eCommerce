@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using API.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -20,6 +21,7 @@ namespace API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public ActionResult<IEnumerable<AppUser>> GetUsers()
         {
             List<AppUser> appUserList = new List<AppUser>();
@@ -58,6 +60,7 @@ namespace API.Controllers
             return appUserList;
         }
 
+        [Authorize]
         [HttpGet("{id}")]
         public ActionResult<AppUser> GetUser(int id)
         {

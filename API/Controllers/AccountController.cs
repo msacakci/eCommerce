@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using API.DTOs;
 using API.Entities;
 using API.Helpers;
+using API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -18,14 +19,15 @@ namespace API.Controllers
     public class AccountController : ControllerBase
     {
         private readonly string connectionString = @"Server=DESKTOP-NEBN67H\SQLEXPRESS;AttachDbFilename=C:\Program Files\Microsoft SQL Server\MSSQL14.SQLEXPRESS\MSSQL\DATA\eCommerce.mdf;Database=eCommerce;Trusted_Connection=Yes;";
+        private readonly ITokenService _tokenService;
 
-        public AccountController()
+        public AccountController(ITokenService tokenService)
         {
-
+            _tokenService = tokenService;
         }
 
         [HttpPost("register")]
-        public ActionResult<AppUser> Register(RegisterDto registerDto)
+        public ActionResult<UserDto> Register(RegisterDto registerDto)
         {
 
             // Check username is already exists or not
@@ -53,11 +55,15 @@ namespace API.Controllers
             databaseHelper.InsertToDatabase(connectionString, stringOfSqlCommand);
 
             //Return the new user
-            return user;
+            return new UserDto
+            {
+                Username = user.UserName,
+                Token = _tokenService.CreateToken(user)
+            };
         }
 
         [HttpPost("login")]
-        public ActionResult<AppUser> Login(LoginDto loginDto)
+        public ActionResult<UserDto> Login(LoginDto loginDto)
         {
             var user = GetUserFromDatabase(loginDto.Username);
 
@@ -81,7 +87,11 @@ namespace API.Controllers
                 }
             }
 
-            return user;
+            return new UserDto
+            {
+                Username = user.UserName,
+                Token = _tokenService.CreateToken(user)
+            };
         }
 
         private bool UserExists( string username)
