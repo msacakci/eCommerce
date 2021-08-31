@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using API.DTOs;
 using API.Entities;
 using API.Helpers;
 using Microsoft.AspNetCore.Mvc;
@@ -26,39 +27,11 @@ namespace API.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<Product>> GetProducts()
         {
-            List<Product> productList = new List<Product>();
+            DatabaseHelper databaseHelper = new DatabaseHelper();
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                //Console.WriteLine( connection.State == ConnectionState.Open); // For test purposes
+            List<ProductDto> productDtoList = databaseHelper.GetListOfProductDtos(connectionString);
 
-                // Retrieve the rows that are contains correct language code.
-                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[product_translations] WHERE language_code = '"+ activeLanguage + "';";
-                
-                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
-                
-                sqlCommand.CommandType = CommandType.Text;
-
-                connection.Open();
-
-                SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
-
-                while( sqlDataReader.Read())
-                {
-                    var product = new Product();
-
-                    product.Id = Convert.ToInt32( sqlDataReader["product_id"]);
-                    product.Description = sqlDataReader["description"].ToString();
-
-                    string productInformation = product.Id + ". " + product.Description + "\n";
-
-                    Console.WriteLine(productInformation);
-
-                    productList.Add( product);
-                }
-
-                sqlDataReader.Close();
-            }                   
+            List<Product> productList = databaseHelper.GetListOfProducts(connectionString, productDtoList, activeLanguage);               
             return productList;
 
         }
@@ -66,35 +39,16 @@ namespace API.Controllers
         [HttpGet("{id}")]
         public ActionResult<Product> GetProduct(int id)
         {
-            var product = new Product();
+            DatabaseHelper databaseHelper = new DatabaseHelper();
 
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                string stringOfSqlCommandFirst = "SELECT * FROM [dbo].[product_translations] WHERE language_code = '"+ activeLanguage + "' AND product_id = " + id + ";";
+            ProductDto productDto = databaseHelper.GetProductDtoFromProductsTable(connectionString, id);
 
-                SqlCommand sqlCommand = new SqlCommand(stringOfSqlCommandFirst, connection);
-                
-                sqlCommand.CommandType = CommandType.Text;
+            var product = databaseHelper.GetProductFromDatabase(connectionString, productDto, activeLanguage);
 
-                connection.Open();
+            string productInfo = product.Id + ". " + product.Description + " - " + product.ProductType  + "\n";
+            Console.WriteLine(productInfo);
 
-                SqlDataReader sqlDataReader = sqlCommand.ExecuteReader();
-
-                while( sqlDataReader.Read())
-                {
-                    product.Id = Convert.ToInt32( sqlDataReader["product_id"]);
-                    product.Description = sqlDataReader["description"].ToString();
-
-                    string productInformation = product.Id + ". " + product.Description + "\n";
-
-                    Console.WriteLine(productInformation);
-                }
-
-                sqlDataReader.Close();
-
-            }
             return product;
-
         }
 
         // [HttpGet("{languageCode}")]
