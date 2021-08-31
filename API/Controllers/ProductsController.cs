@@ -7,40 +7,34 @@ using API.DTOs;
 using API.Entities;
 using API.Helpers;
 using Microsoft.AspNetCore.Mvc;
- 
 
 namespace API.Controllers
 {
-    [ApiController]
-    [Route("[controller]")]
-    public class ProductsController : ControllerBase
+    public class ProductsController : BaseApiController
     {
         private List<string> languageCodes;
-        private readonly string connectionString = @"Server=DESKTOP-NEBN67H\SQLEXPRESS;AttachDbFilename=C:\Program Files\Microsoft SQL Server\MSSQL14.SQLEXPRESS\MSSQL\DATA\eCommerce.mdf;Database=eCommerce;Trusted_Connection=Yes;";
+        private DatabaseHelper databaseHelper;
+
         string activeLanguage;
-        
+
         public ProductsController()
         {
+            databaseHelper = new DatabaseHelper();
             adjustLanguageCodes();
         }
 
         [HttpGet]
         public ActionResult<IEnumerable<Product>> GetProducts()
         {
-            DatabaseHelper databaseHelper = new DatabaseHelper();
-
             List<ProductDto> productDtoList = databaseHelper.GetListOfProductDtos(connectionString);
 
             List<Product> productList = databaseHelper.GetListOfProducts(connectionString, productDtoList, activeLanguage);               
             return productList;
-
         }
 
         [HttpGet("{id}")]
         public ActionResult<Product> GetProduct(int id)
         {
-            DatabaseHelper databaseHelper = new DatabaseHelper();
-
             ProductDto productDto = databaseHelper.GetProductDtoFromProductsTable(connectionString, id);
 
             var product = databaseHelper.GetProductFromDatabase(connectionString, productDto, activeLanguage);
@@ -49,6 +43,47 @@ namespace API.Controllers
             Console.WriteLine(productInfo);
 
             return product;
+        }
+
+        [HttpPost("{addProduct}")]
+        public ActionResult<DetailedProductDto> AddProduct(AddProductDto addProductDto)
+        {
+            if(!databaseHelper.IsProductCategoryIdValid(connectionString, addProductDto.ProductCategoryId))
+            {
+                return BadRequest("Product category id is invalid");
+            }
+            if(!databaseHelper.IsLanguageCodeValid(connectionString, addProductDto.LanguageCode))
+            {
+                return BadRequest("Language code is invalid");
+            }
+
+            return databaseHelper.InsertProductToDatabase(connectionString, addProductDto);
+        }
+
+        [HttpPut]
+        public ActionResult<Product> EditProduct(DetailedProductDto newProductDto)
+        {
+            if(!databaseHelper.IsProductIdValid(connectionString, newProductDto.Id))
+            {
+                return BadRequest("Product id is invalid");
+            }
+
+            ProductDto productDto = databaseHelper.UpdateProduct(connectionString, newProductDto);
+
+            return databaseHelper.GetProductFromDatabase(connectionString, productDto, newProductDto.LanguageCode);
+        }
+
+        [HttpDelete("delete-product/{productId}")]
+        public ActionResult DeleteProduct(int productId)
+        {
+            if(!databaseHelper.IsProductIdValid(connectionString, productId))
+            {
+                return BadRequest("Product id is invalid");
+            }
+            
+            databaseHelper.DeleteProductFromDatabase(connectionString, productId);
+            return Ok();
+
         }
 
         // [HttpGet("{languageCode}")]
@@ -74,7 +109,7 @@ namespace API.Controllers
 
             languageCodes = getLanguagesHelper.GetLanguagesFromDatabase(connectionString);
 
-            activeLanguage = languageCodes[0];
+            activeLanguage = languageCodes[1];
         }
     }
 

@@ -43,6 +43,12 @@ namespace API
 
             services.AddCors();
 
+            services.AddSession(option =>
+            {
+                option.IdleTimeout = TimeSpan.FromMinutes(1);
+            });
+            services.AddMvc();
+
             services.AddIdentityServices(_config);
         }
 
@@ -58,6 +64,8 @@ namespace API
 
             app.UseHttpsRedirection();
             app.UseRouting();
+
+            app.UseSession();
 
             app.UseCors(x => x
                 .AllowAnyHeader()
