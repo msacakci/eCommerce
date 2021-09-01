@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Data.SqlClient;
 using API.DTOs;
 using API.Entities;
 using API.Helpers;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 
 namespace API.Controllers
 {
@@ -14,11 +12,17 @@ namespace API.Controllers
     {
         private List<string> languageCodes;
         private DatabaseHelper databaseHelper;
+        
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private ISession _session => _httpContextAccessor.HttpContext.Session;
 
-        string activeLanguage;
-
-        public ProductsController()
+        public ProductsController(IHttpContextAccessor httpContextAccessor)
         {
+            _httpContextAccessor = httpContextAccessor;
+
+            if(_session.GetString("ActiveLanguage") == null)
+                _session.SetString("ActiveLanguage", "");
+
             databaseHelper = new DatabaseHelper();
             adjustLanguageCodes();
         }
@@ -28,7 +32,7 @@ namespace API.Controllers
         {
             List<ProductDto> productDtoList = databaseHelper.GetListOfProductDtos(connectionString);
 
-            List<Product> productList = databaseHelper.GetListOfProducts(connectionString, productDtoList, activeLanguage);               
+            List<Product> productList = databaseHelper.GetListOfProducts(connectionString, productDtoList, _session.GetString("ActiveLanguage"));               
             return productList;
         }
 
@@ -37,7 +41,7 @@ namespace API.Controllers
         {
             ProductDto productDto = databaseHelper.GetProductDtoFromProductsTable(connectionString, id);
 
-            var product = databaseHelper.GetProductFromDatabase(connectionString, productDto, activeLanguage);
+            var product = databaseHelper.GetProductFromDatabase(connectionString, productDto, _session.GetString("ActiveLanguage"));
 
             string productInfo = product.Id + ". " + product.Description + " - " + product.ProductType  + "\n";
             Console.WriteLine(productInfo);
@@ -86,21 +90,20 @@ namespace API.Controllers
 
         }
 
-        // [HttpGet("{languageCode}")]
-        // public ActionResult<IEnumerable<Product>> GetProductsWithSpecificLanguage(string languageCode)
-        // {
-        //     activeLanguage = languageCode;
+        [HttpPut("{languageCode}")]
+        public ActionResult<IEnumerable<Product>> ChangeLanguage(string languageCode)
+        {
+            _session.SetString("ActiveLanguage", languageCode);
 
-        //     if(!languageCodes.Contains(activeLanguage))
-        //     {
-        //         Console.WriteLine("Language code error");
-        //         return null;
-        //     }        
-        //     else
-        //     {
-        //         return GetProducts();
-        //     }     
-        // }
+            if(!languageCodes.Contains(_session.GetString("ActiveLanguage")))
+            {
+                Console.WriteLine("Language code error");
+                return null;
+            }        
+
+            return GetProducts();
+                 
+        }
 
         private void adjustLanguageCodes()
         {
@@ -109,7 +112,8 @@ namespace API.Controllers
 
             languageCodes = getLanguagesHelper.GetLanguagesFromDatabase(connectionString);
 
-            activeLanguage = languageCodes[1];
+            if(_session.GetString("ActiveLanguage") == "")
+                _session.SetString("ActiveLanguage", languageCodes[0]);
         }
     }
 

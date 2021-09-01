@@ -43,11 +43,15 @@ namespace API
 
             services.AddCors();
 
-            services.AddSession(option =>
-            {
-                option.IdleTimeout = TimeSpan.FromMinutes(1);
-            });
             services.AddMvc();
+            services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
+            services.AddSession(options => {  
+                options.IdleTimeout = TimeSpan.FromMinutes(1);//You can set Time   
+            }); 
+
+            services.AddHttpContextAccessor();
+            services.AddControllersWithViews();
+            
 
             services.AddIdentityServices(_config);
         }
@@ -66,6 +70,14 @@ namespace API
             app.UseRouting();
 
             app.UseSession();
+
+            // Add MVC to the request pipeline.
+            // app.UseMvc(routes =>
+            // {
+            //     routes.MapRoute(
+            //         name: "default",
+            //         template: "{controller=Home}/{action=Index}/{id?}");
+            // });
 
             app.UseCors(x => x
                 .AllowAnyHeader()
